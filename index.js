@@ -36,6 +36,7 @@ async function run() {
         const productCollection = client.db('gigabyte-manufacturer').collection('products');
         const orderCollection = client.db('gigabyte-manufacturer').collection('orders');
         const userCollection = client.db('gigabyte-manufacturer').collection('users');
+        const reviewCollection = client.db('gigabyte-manufacturer').collection('reviews');
         const paymentCollection = client.db('gigabyte-manufacturer').collection('payments');
 
 
@@ -128,6 +129,32 @@ async function run() {
             }
             const result = await orderCollection.insertOne(order);
             res.send({ success: true, result });
+        });
+        //get order api
+        app.get('/order', verifyJWT, async (req, res) => {
+            const user = req.query.user;
+            const decodedEmail = req.decoded.email;
+            if (user === decodedEmail) {
+                const query = { user: user };
+                const result = await orderCollection.find(query).toArray();
+                res.send(result);
+            }
+            else {
+                return res.send(403).send({ message: 'Forbidden Access' });
+            }
+        });
+        //post review
+        app.post('/review', verifyJWT, async (req, res) => {
+            const review = req.body;
+            const result = await reviewCollection.insertOne(review);
+            res.send(result);
+        });
+        //get all review
+        app.get('/review', async (req, res) => {
+            const query = {};
+            const cursor = reviewCollection.find(query);
+            const result = await cursor.toArray();
+            res.send(result);
         });
     }
     finally {
