@@ -107,16 +107,27 @@ async function run() {
         });
         //add products
         app.post('/product', verifyJWT, verifyAdmin, async (req, res) => {
-            const doctor = req.body;
-            const result = await productCollection.insertOne(doctor);
+            const product = req.body;
+            const result = await productCollection.insertOne(product);
             res.send(result);
         });
         //delete product
-        app.delete('/product/:email', verifyJWT, verifyAdmin, async (req, res) => {
+        app.delete('/product/:email', async (req, res) => {
             const email = req.params.email;
             const filter = { email: email };
             const result = await productCollection.deleteOne(filter);
             res.send(result);
+        });
+        //order post api
+        app.post('/order', async (req, res) => {
+            const order = req.body;
+            const query = { product: order.product, name: order.name };
+            const exists = await orderCollection.findOne(query);
+            if (exists) {
+                return res.send({ success: false, order: exists });
+            }
+            const result = await orderCollection.insertOne(order);
+            res.send({ success: true, result });
         });
     }
     finally {
