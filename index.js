@@ -51,6 +51,17 @@ async function run() {
                 res.status(403).send({ message: 'Forbidden Access' });
             }
         };
+        //not admin verify
+        // const verifyNotAdmin = async (req, res, next) => {
+        //     const requester = req.decoded.email;
+        //     const requesterAccount = await userCollection.findOne({ email: requester });
+        //     if (requesterAccount.role !== 'admin') {
+        //         next();
+        //     }
+        //     else {
+        //         res.status(403).send({ message: 'Forbidden Access' });
+        //     }
+        // };
 
         //get all user
         app.get('/user', verifyJWT, async (req, res) => {
@@ -65,6 +76,14 @@ async function run() {
             const isAdmin = user.role === 'admin';
             res.send({ admin: isAdmin });
         });
+
+        //get admin
+        // app.get('/notAdmin/:email', verifyNotAdmin, async (req, res) => {
+        //     const email = req.params.email;
+        //     const user = await userCollection.findOne({ email: email });
+        //     const isNotAdmin = user.role !== 'admin';
+        //     res.send({ notAdmin: isNotAdmin });
+        // });
 
         //make admin
         app.put('/user/admin/:email', verifyJWT, verifyAdmin, async (req, res) => {
@@ -112,14 +131,14 @@ async function run() {
             res.send(result);
         });
         //delete product
-        app.delete('/product/:email', async (req, res) => {
+        app.delete('/product/:email', verifyJWT, verifyAdmin, async (req, res) => {
             const email = req.params.email;
             const filter = { email: email };
             const result = await productCollection.deleteOne(filter);
             res.send(result);
         });
         //order post api
-        app.post('/order', async (req, res) => {
+        app.post('/order', verifyJWT, async (req, res) => {
             const order = req.body;
             const query = { product: order.product, name: order.name };
             const exists = await orderCollection.findOne(query);
