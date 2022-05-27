@@ -4,6 +4,7 @@ require('dotenv').config();
 const app = express();
 const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
 //middleware
@@ -51,17 +52,17 @@ async function run() {
                 res.status(403).send({ message: 'Forbidden Access' });
             }
         };
-        //not admin verify
-        // const verifyNotAdmin = async (req, res, next) => {
-        //     const requester = req.decoded.email;
-        //     const requesterAccount = await userCollection.findOne({ email: requester });
-        //     if (requesterAccount.role !== 'admin') {
-        //         next();
-        //     }
-        //     else {
-        //         res.status(403).send({ message: 'Forbidden Access' });
-        //     }
-        // };
+        app.post('/create-payment-intent', verifyJWT, async (req, res) => {
+            const service = req.body;
+            const price = service.price;
+            const amount = price * 100;
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
+            });
+            res.send({ clientSecret: paymentIntent.client_secret })
+        });
 
         //get all user
         app.get('/user', verifyJWT, async (req, res) => {
@@ -131,9 +132,9 @@ async function run() {
             res.send(result);
         });
         //delete product
-        app.delete('/product/:email', verifyJWT, verifyAdmin, async (req, res) => {
-            const email = req.params.email;
-            const filter = { email: email };
+        app.delete('/product/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) };
             const result = await productCollection.deleteOne(filter);
             res.send(result);
         });
@@ -160,6 +161,33 @@ async function run() {
             else {
                 return res.send(403).send({ message: 'Forbidden Access' });
             }
+        });
+        app.get('/order/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const result = await orderCollection.findOne(query);
+            res.send(result);
+        });
+        app.patch('/order/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const payment = req.body;
+            const filter = { _id: ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    paid: true,
+                    transactionId: payment.transactionId
+                }
+            }
+            const result = await paymentCollection.insertOne(payment);
+            const updatedOrder = await orderCollection.updateOne(filter, updateDoc);
+            res.send(updatedOrder);
+        })
+        //delete order
+        app.delete('/order/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) };
+            const result = await orderCollection.deleteOne(filter);
+            res.send(result);
         });
         //post review
         app.post('/review', verifyJWT, async (req, res) => {
