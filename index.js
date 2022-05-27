@@ -78,14 +78,6 @@ async function run() {
             res.send({ admin: isAdmin });
         });
 
-        //get admin
-        // app.get('/notAdmin/:email', verifyNotAdmin, async (req, res) => {
-        //     const email = req.params.email;
-        //     const user = await userCollection.findOne({ email: email });
-        //     const isNotAdmin = user.role !== 'admin';
-        //     res.send({ notAdmin: isNotAdmin });
-        // });
-
         //make admin
         app.put('/user/admin/:email', verifyJWT, verifyAdmin, async (req, res) => {
             const email = req.params.email;
@@ -109,6 +101,26 @@ async function run() {
             const result = await userCollection.updateOne(filter, updateDoc, options);
             const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' })
             res.send({ result, token });
+        });
+
+        app.put('/user/:currentUser', async (req, res) => {
+            const email = req.params.email;
+            const user = req.body;
+            const filter = { email: email };
+            const options = { upsert: true };
+            const updateDoc = {
+                $set: user,
+            };
+            const result = await userCollection.updateOne(filter, updateDoc, options);
+            const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' })
+            res.send({ result, token });
+        });
+
+        app.get('/user/:currentUser', verifyJWT, async (req, res) => {
+            const email = req.params.currentUser;
+            const query = { email: email }
+            const users = await userCollection.findOne(query);
+            res.send(users);
         });
 
         //get all computer parts
@@ -183,12 +195,13 @@ async function run() {
             res.send(updatedOrder);
         })
         //delete order
-        app.delete('/order/:id', verifyJWT, verifyAdmin, async (req, res) => {
+        app.delete('/order/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: ObjectId(id) };
             const result = await orderCollection.deleteOne(filter);
             res.send(result);
         });
+
         //post review
         app.post('/review', verifyJWT, async (req, res) => {
             const review = req.body;
